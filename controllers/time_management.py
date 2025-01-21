@@ -12,3 +12,42 @@ def get_schedule():
     user_data = request.get_json()
     schedule = get_user_schedule(user_data)
     return jsonify(schedule)
+
+@bp.route('/update_schedule', methods=['PUT'])
+def update_schedule():
+    """
+    API endpoint to update a user's schedule.
+    :return: A JSON response indicating success or failure
+    """
+    data = request.get_json()
+    success = update_user_schedule(data)
+    if success:
+        return jsonify({"message": "Schedule updated successfully"}), 200
+    else:
+        return jsonify({"error": "Failed to update schedule"}), 400
+
+@bp.route('/delete_schedule', methods=['DELETE'])
+def delete_schedule():
+    """
+    API endpoint to delete a user's schedule entry.
+    :return: A JSON response indicating success or failure
+    """
+    data = request.get_json()
+    success = delete_user_schedule(data)
+    if success:
+        return jsonify({"message": "Schedule entry deleted successfully"}), 200
+    else:
+        return jsonify({"error": "Failed to delete schedule entry"}), 400
+
+@bp.route('/add_schedule_entry', methods=['POST'])
+def add_schedule_entry():
+    """
+    API endpoint to add a new entry to the user's schedule.
+    :return: A JSON response indicating success or failure
+    """
+    data = request.get_json()
+    success = add_user_schedule_entry(data)
+    if success:
+        return jsonify({"message": "Schedule entry added successfully"}), 201
+    else:
+        return jsonify({"error": "Failed to add schedule entry"}), 400
