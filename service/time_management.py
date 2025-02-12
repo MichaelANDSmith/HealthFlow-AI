@@ -70,3 +70,29 @@ def clear_user_schedule_history(user_id):
     if not history:  
         return f"No schedule history found for user {user_id}." 
     return history 
+
+def get_user_schedule_overview(user_id):
+    """
+    Get a quick overview of the user's current schedule.
+    :param user_id: The unique ID of the user
+    :return: A summary of the user's current schedule for the day
+    """
+    schedule = get_user_schedule(user_id)
+    overview = {
+        "total_work_time": sum(item['duration'] for item in schedule if item['type'] == 'work'),
+        "total_study_time": sum(item['duration'] for item in schedule if item['type'] == 'study'),
+        "total_break_time": sum(item['duration'] for item in schedule if item['type'] == 'break'),
+    }
+    return overview
+
+def save_user_schedule_with_notes(user_id, user_data, notes):
+    """
+    Save the user's daily schedule along with additional notes to the database.
+    :param user_id: The unique ID of the user
+    :param user_data: The data of the user for schedule generation
+    :param notes: Any additional notes to be saved with the schedule
+    :return: A confirmation message
+    """
+    schedule = get_user_schedule(user_data)  
+    save_user_schedule(user_id=user_id, schedule=schedule, notes=notes)  
+    return f"Schedule for user {user_id} with notes saved successfully." 
