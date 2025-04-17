@@ -11,11 +11,19 @@ def register_user(username, email, password):
     :param password: User's password
     :return: User object
     """
+    if User.query.filter_by(email=email).first():
+        return {'error': 'Email already registered.'}
+    
+    if User.query.filter_by(username=username).first():
+        return {'error': 'Username already taken.'}
+    
     hashed_password = generate_password_hash(password)
     new_user = User(username=username, email=email, password_hash=hashed_password)
     db.session.add(new_user)
     db.session.commit()
-    return new_user
+    
+    access_token = create_access_token(identity=new_user.id)
+    return {'user': new_user.username, 'token': access_token}
 
 def authenticate_user(email, password):
     """
@@ -26,6 +34,8 @@ def authenticate_user(email, password):
     """
     user = User.query.filter_by(email=email).first()
     if user and check_password_hash(user.password_hash, password):
+        if not getattr(user, 'is_active', True):
+            return None  # Inactive accounts cannot login
         access_token = create_access_token(identity=user.id)
         return access_token
     return None
