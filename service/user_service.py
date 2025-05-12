@@ -2,6 +2,9 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from app.models.user import User
 from app import db
 from flask_jwt_extended import create_access_token
+# +++ Added new imports +++
+from sqlalchemy.exc import SQLAlchemyError  # For database error handling
+import re  # For email format validation
 
 def register_user(username, email, password):
     """
@@ -11,19 +14,32 @@ def register_user(username, email, password):
     :param password: User's password
     :return: User object
     """
-    if User.query.filter_by(email=email).first():
-        return {'error': 'Email already registered.'}
+    # +++ Added input validation +++
+    if len(password) < 8:
+        return {'error': 'Password must be at least 8 characters long'}
     
-    if User.query.filter_by(username=username).first():
-        return {'error': 'Username already taken.'}
+    if not re.match(r"[^@]+@[^@]+\.[^@]+", email):
+        return {'error': 'Invalid email format'}
     
-    hashed_password = generate_password_hash(password)
-    new_user = User(username=username, email=email, password_hash=hashed_password)
-    db.session.add(new_user)
-    db.session.commit()
+    existing_user = User.query.filter((User.email == email) | (User.username == username)).first()
+    if existing_user:
+        if existing_user.email == email:
+            return {'error': 'Email already registered'}
+        return {'error': 'Username already taken'}
     
-    access_token = create_access_token(identity=new_user.id)
-    return {'user': new_user.username, 'token': access_token}
+    try:
+        hashed_password = generate_password_hash(password)
+        new_user = User(username=username, email=email, password_hash=hashed_password)
+        db.session.add(new_user)
+        db.session.commit()
+        
+        access_token = create_access_token(identity=new_user.id)
+        return {'user': new_user.username, 'token': access_token}
+    
+    # +++ Added database error handling +++
+    except SQLAlchemyError as e:
+        db.session.rollback()
+        return {'error': 'Registration failed due to database error'}
 
 def authenticate_user(email, password):
     """
@@ -33,9 +49,22 @@ def authenticate_user(email, password):
     :return: JWT token if valid
     """
     user = User.query.filter_by(email=email).first()
-    if user and check_password_hash(user.password_hash, password):
-        if not getattr(user, 'is_active', True):
-            return None  # Inactive accounts cannot login
+    
+    # +++ Enhanced authentication checks +++
+    if not user:
+        return {'error': 'Invalid credentials'}
+    
+    if not check_password_hash(user.password_hash, password):
+        return {'error': 'Invalid credentials'}
+    
+    # +++ Added explicit is_active check +++
+    if hasattr(user, 'is_active') and not user.is_active:
+        return {'error': 'Account deactivated'}
+    
+    try:
         access_token = create_access_token(identity=user.id)
-        return access_token
-    return None
+        return {'token': access_token}
+    
+    # +++ Added general exception handling +++
+    except Exception as e:
+        return {'error': 'Authentication failed'}
